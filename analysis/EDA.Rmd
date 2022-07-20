@@ -1,0 +1,209 @@
+---
+title: "EDA"
+author: "Carlos Rey Romero"
+date: '2022-07-19'
+output:
+  html_document:
+    toc: yes
+    theme: united
+  pdf_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("dplyr")   
+
+```
+
+# Introduction
+
+Describe project here:
+
+
+## 1. Read and explain dataset
+
+```{r}
+# Read
+df <- read.csv("cleaned_df.csv")
+
+
+# Establish domain
+df$domain <- ifelse((df$choice_corrected > 0.5) & (df$not_choice_corrected > 0.5), "loss",
+                    ifelse((df$choice_corrected < 0.5) & (df$not_choice_corrected < 0.5), "gain", "mixed"))
+
+
+# Convert variables
+df$responded <- as.logical(df$responded)
+cols_to_factor <- c("domain", "response", "block",
+                    "gain_color", "loss_color")
+df[cols_to_factor] <- lapply(df[cols_to_factor], factor)
+
+
+# create a dataframe without practice block
+df_no_prc <- df[df$block != 0, ]
+
+summary(df)
+```
+
+Each row represents a trial. Thus, each participant has 294 rows (trials), 24 from practice block and 270 from main blocks.
+
+Columns explanation:
+
+- timestamp: timestamp for this trial.
+- gain_color: which color represents gains.
+- loss_color: which color represents losses.
+- left: proportion of blue presented in left box.
+- right: proportion of blue presented in right box.
+- choice: proportion of blue chosen.
+- not_choice: proportion of blue not chosen (opposite box).
+- diff_net_value: Difference in net value between boxes. This can be 2, 4 and 6.
+- duration: Response time for each trial.
+- responded: boolean indicating whether participant responded or not (only for practice trials).
+- response: which response was given. This can be: f, j or timeout (for practice).
+- points: how many points won or lost participant for that trial.
+- pointsBlock: aggregated points for practice block.
+- points1Block: aggregated points for block 1 .
+- points2Block: aggregated points for block 2.
+- points3Block: aggregated points for block 3.
+- points4Block: aggregated points for block 4.
+- points5Block: aggregated points for block 5.
+- points6Block: aggregated points for block 6.
+- response_action: key pressed at that trial (this could indicate if participants did not understand task).
+- picture_left: URL of picture presented at left box.
+- picture_right: URL of picture presented at right box.
+- subject_id: Subject ID.
+- file: File name of participant data.
+- block: Block to which this trial belongs. This can be 0 (for practice block), 1, 2, 3, 4, 5 or 6.
+- choice_corrected: proportion of losses chosen. Meaning: for participants where yellow represents gains and blue represents losses, this column is equivalent to choice. For participants where blue represents gains and blue represents losses, this column is 1 - choice. This enables comparison between participants in different color counterbalances.
+- not_choice_corrected: proportion of losses not chosen.
+- maximized_option: if participant has chosen best option, meaning: 0 when choice_corrected (proportion of losses chosen) is > than not_choice_corrected (proportion of lossess not chosen) and 1 when opposite case.
+
+## 2. Simple plots
+
+```{r}
+
+hist(df_no_prc$duration, breaks=100,
+     main="Histogram of RT without practice block",
+     xlab="Response time in ms")
+
+hist(log(df_no_prc$duration), breaks=100,
+     main="Histogram of lof transformed RT without practice block",
+     xlab="Log transformed RT in ms")
+
+```
+
+Response time looks good. Original RT seems to be skewed (usual when using free response time paradigm). We can keep this, transform (log transform as below) or filter too delayed responses.
+
+Lets going to have a look at maximed option. This variable could be interpreted as given correct response (or best response in this case).
+
+```{r}
+
+barplot(table(df_no_prc$maximized_option),
+        main="How many times best option has been chosen without practice block",
+        legend.text = c("Worst choice", "Best option"),
+        col = c("orange", "darkgreen"))
+
+print(paste0("Proportion of best option has been chosen is ",
+             mean(df_no_prc$maximized_option),
+             " and std is ",
+             sd(df_no_prc$maximized_option)))
+
+```
+
+If we interpret chosing best option as performance, this indicates that our task is simple enough but we obtain a high standard deviation. Thus, lets have a look at each participant:
+
+```{r}
+# Looking how many times best options ha ben choosen, taking into account practice
+df %>%                        
+  group_by(subject_id) %>% 
+  summarize(N = n(),
+            count = sum(maximized_option),
+            mean = mean(maximized_option),
+            std = sd(maximized_option))
+
+```
+
+Some participants have extremely poor performance. This might be because we are looking also at practice. Lets look just main blocks (no practice):
+
+```{r}
+
+df_no_prc %>%                        
+  group_by(subject_id) %>% 
+  summarize(N = n(),
+            count = sum(maximized_option),
+            mean = mean(maximized_option),
+            std = sd(maximized_option))
+```
+
+Some participants has really poor performance. Participant 3 must have misunderstood which was the color representing losses (even when we proportioned feedback at practice). Participants 2, 4 or 7 have a performance close to 0.5. this could be interpreted as random choices or problems detecting color proportions (visual problems? Should we warn about visual impairments?).
+
+## 3. Comparison between domains
+
+Lets make some initial comparisons between domains.
+
+```{r}
+
+barplot(table(df_no_prc$maximized_option, df_no_prc$domain),
+        main="How many times best option has been chosen without practice block",
+        legend.text = c("Worst choice", "Best option"),
+        col = c("orange", "darkgreen"),
+        beside=TRUE)
+
+df_no_prc %>%                        
+  group_by(domain, maximized_option) %>% 
+  summarize(N = n())
+
+```
+
+No differences between domains in how many best options have chosen.
+
+```{r}
+
+
+boxplot(log(duration) ~ domain, data=df_no_prc,
+        main="Boxplot for log transformed response time in each domain",
+        ylab="Log transformed RT")
+
+df_no_prc %>%                        
+  group_by(domain) %>% 
+  summarize(min = min(duration),
+            Q1 = quantile(duration, 0.25),
+            mean = mean(duration),
+            median = median(duration),
+            Q3 = quantile(duration, 0.75),
+            max = max(duration))
+
+```
+
+In response time we find more differences.
+
+In any case, this is just piloting 15 participants. We must wait for a complete sample.
+
+## Extra checks
+
+One assumption someone could have is: more difference between image presented would make easier to chose best option.
+
+```{r}
+
+barplot(table(df_no_prc$maximized_option, df_no_prc$diff_net_value),
+        main="How many times best option has been chosen given difference between boxes",
+        ylab="Times option selected",
+        xlab="Difference between boxes",
+        legend.text = c("Worst choice", "Best option"),
+        col = c("orange", "darkgreen"),
+        beside=TRUE)
+
+df_no_prc %>%                        
+  group_by(diff_net_value) %>% 
+  summarize(N = n(),
+            count_maximized_option = sum(maximized_option),
+            mean = mean(maximized_option))
+```
+
+This seems to be accomplished.
+
+
