@@ -39,7 +39,7 @@ df$domain <- ifelse((df$choice_corrected > 0.5) & (df$not_choice_corrected > 0.5
 # Convert variables
 df$responded <- as.logical(df$responded)
 cols_to_factor <- c("domain", "response", "block",
-                    "gain_color", "loss_color")
+                    "gain_color", "loss_color", "subject_id")
 df[cols_to_factor] <- lapply(df[cols_to_factor], factor)
 
 
@@ -81,6 +81,15 @@ Columns explanation:
 - choice_corrected: proportion of losses chosen. Meaning: for participants where yellow represents gains and blue represents losses, this column is equivalent to choice. For participants where blue represents gains and blue represents losses, this column is 1 - choice. This enables comparison between participants in different color counterbalances.
 - not_choice_corrected: proportion of losses not chosen.
 - maximized_option: if participant has chosen best option, meaning: 0 when choice_corrected (proportion of losses chosen) is > than not_choice_corrected (proportion of lossess not chosen) and 1 when opposite case.
+
+Lets get some checks:
+
+```{r}
+df_no_prc %>%                        
+  group_by(block, diff_net_value, subject_id, domain) %>% 
+  summarize(number_domains = n())
+```
+
 
 ## 2. Simple plots
 
@@ -206,4 +215,60 @@ df_no_prc %>%
 
 This seems to be accomplished.
 
+Lets have a look at how participants perform across blocks. Plots will be from 5 participants each, for readability.
+First for performance:
 
+```{r}
+
+mean_data <- group_by(df, subject_id, block) %>%
+             summarise(maximized_option = mean(maximized_option))
+
+
+
+library(ggplot2)
+ggplot(mean_data[mean_data$subject_id %in% c(1,2,3,4,5),], aes(x = block, y = maximized_option, group = subject_id)) +
+  geom_point() +
+  geom_line(aes(color=subject_id)) +
+  geom_text(aes(label = round(maximized_option, 2), color=subject_id), position = position_dodge(0.6, "single"))
+
+ggplot(mean_data[mean_data$subject_id %in% c(6,7,8,9,10),], aes(x = block, y = maximized_option, group = subject_id)) +
+  geom_point() +
+  geom_line(aes(color=subject_id)) +
+  geom_text(aes(label = round(maximized_option,2), color=subject_id), position = position_dodge(0.6, "single"))
+
+ggplot(mean_data[mean_data$subject_id %in% c(11,12,13,14,15),], aes(x = block, y = maximized_option, group = subject_id)) +
+  geom_point() +
+  geom_line(aes(color=subject_id)) +
+  geom_text(aes(label = round(maximized_option,2), color=subject_id), position = position_dodge(0.6, "single"))
+
+
+```
+
+And now for RT:
+
+
+```{r}
+
+mean_data <- group_by(df, subject_id, block) %>%
+             summarise(duration = mean(duration))
+
+
+
+library(ggplot2)
+ggplot(mean_data[mean_data$subject_id %in% c(1,2,3,4,5),], aes(x = block, y = duration, group = subject_id)) +
+  geom_point() +
+  geom_line(aes(color=subject_id)) +
+  geom_text(aes(label = round(duration, 2), color=subject_id), position = position_dodge(0.6, "single"))
+
+ggplot(mean_data[mean_data$subject_id %in% c(6,7,8,9,10),], aes(x = block, y = duration, group = subject_id)) +
+  geom_point() +
+  geom_line(aes(color=subject_id)) +
+  geom_text(aes(label = round(duration,2), color=subject_id), position = position_dodge(0.6, "single"))
+
+ggplot(mean_data[mean_data$subject_id %in% c(11,12,13,14,15),], aes(x = block, y = duration, group = subject_id)) +
+  geom_point() +
+  geom_line(aes(color=subject_id)) +
+  geom_text(aes(label = round(duration,2), color=subject_id), position = position_dodge(0.6, "single"))
+
+
+```

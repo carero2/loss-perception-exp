@@ -37,6 +37,8 @@ for (file in files) {
   
   d <- d[d$sender %in% c("choice"), ] #select rows
   
+  d$sender <- NULL #remove sender column
+  
   rownames(d) <- NULL  #reset index
   
   print(nrow(d))
